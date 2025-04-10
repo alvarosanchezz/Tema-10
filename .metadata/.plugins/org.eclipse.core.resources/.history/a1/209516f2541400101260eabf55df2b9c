@@ -1,0 +1,101 @@
+package com.daw.daw_task.services.dto;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.daw.daw_task.persistence.entities.Tarea;
+import com.daw.daw_task.persistence.entities.enums.Estado;
+import com.daw.daw_task.persistence.repositories.TareaRepositorio;
+import com.daw.daw_task.services.exceptions.TareaException;
+import com.daw.daw_task.services.exceptions.TareaNotFoundException;
+
+@Service
+public class TareaServicio {
+
+	@Autowired
+	private TareaRepositorio tareaRepositorio;
+
+	public List<Tarea> findAll() {
+		return this.tareaRepositorio.findAll();
+	}
+
+	public Tarea findById(int idTarea) {
+		if (!this.tareaRepositorio.existsById(idTarea)) {
+			throw new TareaNotFoundException("No se ha encontrado la tarea con ID: " + idTarea);
+		}
+		return this.tareaRepositorio.findById(idTarea).get();
+	}
+
+	public boolean existsById(int idTarea) {
+		return this.tareaRepositorio.existsById(idTarea);
+	}
+
+	public boolean deleteById(int idTarea) {
+		boolean result = false;
+
+		if (this.tareaRepositorio.existsById(idTarea)) {
+			this.tareaRepositorio.deleteById(idTarea);
+			result = true;
+		}
+
+		return result;
+	}
+
+	public Tarea create(Tarea tarea) {
+		tarea.setFechaCreacion(LocalDate.now());
+		tarea.setEstado(Estado.PENDIENTE);
+
+		return this.tareaRepositorio.save(tarea);
+	}
+
+	public Tarea update(int idTarea, Tarea tarea) {
+		if (idTarea != tarea.getId()) {
+			throw new TareaException(
+					"El ID del path (" + idTarea + ") y el ID del body (" + tarea.getId() + ") no coinciden");
+		}
+		if (!this.tareaRepositorio.existsById(idTarea)) {
+			throw new TareaNotFoundException("No existe la tarea con ID:" + idTarea);
+		}
+
+		Tarea tareaBD = this.findById(tarea.getId());
+		tareaBD.setTitulo(tarea.getTitulo());
+		tareaBD.setDescripcion(tarea.getDescripcion());
+		tareaBD.setFechaVencimiento(tarea.getFechaVencimiento());
+
+		return this.tareaRepositorio.save(tarea);
+	}
+
+	public boolean deleteDeclarativo(int idTarea) {
+		boolean result = false;
+		if (this.tareaRepositorio.existsById(idTarea)) {
+			this.tareaRepositorio.deleteById(idTarea);
+			result = true;
+		}
+
+		return result;
+	}
+
+	public boolean deleteFuncional(int idTarea) {
+		return this.tareaRepositorio.findById(idTarea).map(t -> {
+			this.tareaRepositorio.deleteById(idTarea);
+			return true;
+		}).orElse(false);
+
+	}
+
+	public boolean deleteFuncionalExcep(int idTarea) {
+		return this.tareaRepositorio.findById(idTarea).map(t -> {
+			this.tareaRepositorio.deleteById(idTarea);
+			return true;
+		}).orElse(false);
+
+	}
+
+	public Tarea findByIdFunctional(int idTarea) {
+		return this.tareaRepositorio.findById(idTarea)
+				.orElseThrow(() -> new TareaNotFoundException("No existe la tarea con ID:" + idTarea));
+	}
+}

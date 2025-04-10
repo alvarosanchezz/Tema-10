@@ -1,0 +1,59 @@
+package com.daw.daw_task.services.dto;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.daw.daw_task.persistence.entities.Tarea;
+import com.daw.daw_task.persistence.entities.enums.Estado;
+import com.daw.daw_task.persistence.repositories.TareaRepositorio;
+
+@Service
+public class TareaServicio {
+
+	@Autowired
+	private TareaRepositorio tareaRepositorio;
+
+	public List<Tarea> findAll() {
+		return this.tareaRepositorio.findAll();
+	}
+
+	public Tarea findById(int idTarea) {
+		return this.tareaRepositorio.findById(idTarea).get();
+	}
+
+	public boolean existsById(int idTarea) {
+		return this.tareaRepositorio.existsById(idTarea);
+	}
+
+	public boolean deleteById(int idTarea) {
+		boolean result = false;
+
+		if (this.tareaRepositorio.existsById(idTarea)) {
+			this.tareaRepositorio.deleteById(idTarea);
+			result = true;
+		}
+
+		return result;
+	}
+
+	public Tarea create(Tarea tarea) {
+		tarea.setFechaCreacion(LocalDate.now());
+		tarea.setEstado(Estado.PENDIENTE);
+
+		return this.tareaRepositorio.save(tarea);
+
+	}
+
+	public Tarea update(Tarea tarea) {
+		Tarea tareaBD = this.findById(tarea.getId());
+		tarea.setFechaCreacion(tareaBD.getFechaCreacion());
+		tarea.setEstado(tareaBD.getEstado());
+
+		return this.tareaRepositorio.save(tarea);
+
+	}
+
+}

@@ -1,0 +1,19 @@
+package com.DAW;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class HolaMundoController {
+	
+	@GetMapping("/holamundo/saludo")
+	public String saludar() {
+		return "Hola Mundo";
+	}
+	
+	@GetMapping("/holamundo/despedirse")
+	public String despedirse() {
+		return "Adios Mundo";
+	}
+	
+}

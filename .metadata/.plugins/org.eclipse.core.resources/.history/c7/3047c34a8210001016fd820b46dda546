@@ -1,0 +1,5 @@
+package com.daw.daw_task.services.exceptions;
+
+public class TareaException {
+
+}

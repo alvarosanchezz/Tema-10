@@ -1,0 +1,184 @@
+package com.daw.daw_task.services.dto;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.daw.daw_task.persistence.entities.Tarea;
+import com.daw.daw_task.persistence.entities.enums.Estado;
+import com.daw.daw_task.persistence.repositories.TareaRepositorio;
+import com.daw.daw_task.services.exceptions.TareaException;
+import com.daw.daw_task.services.exceptions.TareaNotFoundException;
+
+@Service
+public class TareaServicio {
+
+	@Autowired
+	private TareaRepositorio tareaRepositorio;
+
+	public List<Tarea> findAll() {
+		return this.tareaRepositorio.findAll();
+	}
+
+	public Tarea findById(int idTarea) {
+		if (!this.tareaRepositorio.existsById(idTarea)) {
+			throw new TareaNotFoundException("No se ha encontrado la tarea con ID: " + idTarea);
+		}
+		return this.tareaRepositorio.findById(idTarea).get();
+	}
+
+	public boolean existsById(int idTarea) {
+		return this.tareaRepositorio.existsById(idTarea);
+	}
+
+	public boolean deleteById(int idTarea) {
+		boolean result = false;
+
+		if (this.tareaRepositorio.existsById(idTarea)) {
+			this.tareaRepositorio.deleteById(idTarea);
+			result = true;
+		}
+
+		return result;
+	}
+
+	public Tarea create(Tarea tarea) {
+		tarea.setFechaCreacion(LocalDate.now());
+		tarea.setEstado(Estado.PENDIENTE);
+
+		if (tarea.getFechaVencimiento().isBefore(tarea.getFechaCreacion())) {
+			throw new TareaException("La fecha de vencimiento debe ser posterior a la fecha de creación.");
+		}
+
+		return this.tareaRepositorio.save(tarea);
+	}
+
+	public Tarea update(int idTarea, Tarea tarea) {
+		if (idTarea != tarea.getId()) {
+			throw new TareaException(
+					"El ID del path (" + idTarea + ") y el ID del body (" + tarea.getId() + ") no coinciden");
+		}
+		if (!this.tareaRepositorio.existsById(idTarea)) {
+			throw new TareaNotFoundException("No existe la tarea con ID:" + idTarea);
+		}
+
+		Tarea tareaBD = this.findById(tarea.getId());
+
+		if (tarea.getFechaVencimiento().isBefore(tareaBD.getFechaCreacion())) {
+			throw new TareaException("La fecha de vencimiento debe ser posterior a la fecha de creación.");
+		}
+
+		tareaBD.setTitulo(tarea.getTitulo());
+		tareaBD.setDescripcion(tarea.getDescripcion());
+		tareaBD.setFechaVencimiento(tarea.getFechaVencimiento());
+
+		return this.tareaRepositorio.save(tareaBD);
+	}
+
+	public boolean deleteDeclarativo(int idTarea) {
+		boolean result = false;
+		if (this.tareaRepositorio.existsById(idTarea)) {
+			this.tareaRepositorio.deleteById(idTarea);
+			result = true;
+		}
+
+		return result;
+	}
+
+	public boolean deleteFuncional(int idTarea) {
+		return this.tareaRepositorio.findById(idTarea).map(t -> {
+			this.tareaRepositorio.deleteById(idTarea);
+			return true;
+		}).orElse(false);
+
+	}
+
+	public boolean deleteFuncionalExcep(int idTarea) {
+		return this.tareaRepositorio.findById(idTarea).map(t -> {
+			this.tareaRepositorio.deleteById(idTarea);
+			return true;
+		}).orElse(false);
+
+	}
+
+	public Tarea findByIdFunctional(int idTarea) {
+		return this.tareaRepositorio.findById(idTarea)
+				.orElseThrow(() -> new TareaNotFoundException("No existe la tarea con ID:" + idTarea));
+	}
+
+	public long totalTareasCompletadas() {
+		return this.tareaRepositorio.findAll().stream().filter(t -> t.getEstado() == Estado.COMPLETADA).count();
+	}
+
+	public long totalTareasCompletadasDec() {
+		int total = 0;
+
+		for (Tarea t : this.tareaRepositorio.findAll()) {
+			if (t.getEstado() == Estado.COMPLETADA) {
+				total++;
+			}
+		}
+		return total;
+	}
+
+	public List<LocalDate> fechaVencimientoEnProgreso() {
+		return this.tareaRepositorio.findAll().stream().filter(t -> t.getEstado() == Estado.EN_PROGRESO)
+				.map(t -> t.getFechaVencimiento()).collect(Collectors.toList());
+	}
+
+	public void fechaVencidas() {
+		this.tareaRepositorio.findAll().stream().filter(t -> t.getFechaVencimiento().isBefore(LocalDate.now()))
+				.forEach(t -> System.out.println(t));
+	}
+
+	public List<String> titulosTareasPendientes() {
+		return this.tareaRepositorio.findAll().stream().filter(t -> t.getEstado() == Estado.PENDIENTE)
+				.map(t -> t.getTitulo()).collect(Collectors.toList());
+	}
+
+	public List<Tarea> ordenadasFechaVencimiento() {
+		return this.tareaRepositorio.findAll().stream()
+				.sorted((t1, t2) -> t1.getFechaVencimiento().compareTo(t2.getFechaVencimiento()))
+				.collect(Collectors.toList());
+	}
+
+	public Tarea iniciarTarea(int idTarea) {
+		Tarea tarea = findByIdFunctional(idTarea);
+		if (tarea.getEstado() != Estado.PENDIENTE) {
+			throw new TareaException("Solo se pueden iniciar tareas en estado PENDIENTE.");
+		}
+		tarea.setEstado(Estado.EN_PROGRESO);
+		return tareaRepositorio.save(tarea);
+	}
+
+	public Tarea completarTarea(int idTarea) {
+		Tarea tarea = findByIdFunctional(idTarea);
+		if (tarea.getEstado() != Estado.EN_PROGRESO) {
+			throw new TareaException("Solo se pueden completar tareas en estado EN_PROGRESO.");
+		}
+		tarea.setEstado(Estado.COMPLETADA);
+		return tareaRepositorio.save(tarea);
+	}
+
+	public List<Tarea> buscarPorTitulo(String texto) {
+		return tareaRepositorio.findAll().stream()
+				.filter(t -> t.getTitulo().toLowerCase().contains(texto.toLowerCase())).collect(Collectors.toList());
+	}
+
+	public List<Tarea> obtenerPorEstado(Estado estado) {
+		return tareaRepositorio.findAll().stream().filter(t -> t.getEstado() == estado).collect(Collectors.toList());
+	}
+
+	public List<Tarea> tareasVencidas() {
+		return tareaRepositorio.findAll().stream().filter(t -> t.getFechaVencimiento().isBefore(LocalDate.now()))
+				.collect(Collectors.toList());
+	}
+
+	public List<Tarea> tareasNoVencidas() {
+		return tareaRepositorio.findAll().stream().filter(t -> !t.getFechaVencimiento().isBefore(LocalDate.now()))
+				.collect(Collectors.toList());
+	}
+
+}
